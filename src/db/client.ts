@@ -31,8 +31,9 @@ export async function markJobsSeenBatch(
   jobs: { url: string; title: string; company: string }[]
 ): Promise<void> {
   if (jobs.length === 0) return;
-  for (const batch of chunks(jobs, CHUNK_SIZE)) {
-    const { error } = await supabase.from("seen_jobs").upsert(batch);
+  const unique = [...new Map(jobs.map((j) => [j.url, j])).values()];
+  for (const batch of chunks(unique, CHUNK_SIZE)) {
+    const { error } = await supabase.from("seen_jobs").upsert(batch, { onConflict: "url" });
     if (error) throw error;
   }
 }

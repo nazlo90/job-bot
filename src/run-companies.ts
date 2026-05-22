@@ -12,7 +12,9 @@ async function main() {
     fetchAllPlaywrightJobs(),
   ]);
 
-  const allJobs = [...atsJobs, ...playwrightJobs].filter((j) => !!j.url);
+  const allJobs = [
+    ...new Map([...atsJobs, ...playwrightJobs].filter((j) => !!j.url).map((j) => [j.url, j])).values(),
+  ];
   console.log(`Fetched ${atsJobs.length} ATS jobs + ${playwrightJobs.length} Playwright jobs`);
 
   const seenUrls = await getSeenUrls(allJobs.map((j) => j.url));
