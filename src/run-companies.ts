@@ -43,7 +43,9 @@ async function main() {
   console.log(`Done — sent ${sent} notifications, marked ${toMark.length} jobs as seen`);
 }
 
-main().catch((err) => {
+try {
+  await main();
+} catch (err) {
   console.error("Fatal error in run-companies:", err);
   process.exit(1);
-});
+}

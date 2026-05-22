@@ -1,5 +1,8 @@
 import type { Job } from "../types";
 
+// Sources that are already geographically filtered — skip location check
+const TRUSTED_SOURCES = new Set(["DOU", "Djinni"]);
+
 // Companies from the PDF — apply looser keyword filter for these
 const WHITELISTED_COMPANIES = new Set([
   "macpaw",
@@ -83,13 +86,17 @@ const BLOCK_KEYWORDS = [
 
 const LOCATION_ALLOW = [
   "remote",
-  "віддален",
+  "віддален",    // відdaleno
+  "дистанційн",  // dystantsiyno
   "lviv",
   "львів",
   "worldwide",
   "anywhere",
   "home-based",
   "distributed",
+  "по всій україн", // "across Ukraine" = effectively remote
+  "ukraine",
+  "україн",
 ];
 
 function normalize(text: string): string {
@@ -106,37 +113,38 @@ function isWhitelisted(company: string): boolean {
 }
 
 function isLocationOk(job: Job): boolean {
-  // Whitelisted companies assumed to have remote roles — skip location check
+  // DOU/Djinni are Ukrainian boards — location already scoped, skip check
+  if (TRUSTED_SOURCES.has(job.source)) return true;
+  // Whitelisted companies assumed remote
   if (isWhitelisted(job.company)) return true;
   const text = `${job.title} ${job.location} ${job.description}`;
   return hasAny(text, LOCATION_ALLOW);
 }
 
-type FilterResult = { pass: true } | { pass: false; reason: string } | { pass: "ambiguous"; text: string };
+type FilterResult =
+  | { pass: true }
+  | { pass: false; reason: string }
+  | { pass: "ambiguous"; text: string };
 
 function keywordFilter(job: Job): FilterResult {
   const searchText = `${job.title} ${job.description}`;
 
-  // Always block these regardless of company
   if (hasAny(searchText, BLOCK_KEYWORDS)) {
-    return { pass: false, reason: "blocked keyword" };
+    return { pass: false, reason: `blocked keyword in "${job.title}"` };
   }
 
   if (!isLocationOk(job)) {
-    return { pass: false, reason: "location mismatch" };
+    return { pass: false, reason: `location mismatch — location: "${job.location}"` };
   }
 
-  // Whitelisted company — pass if not blocked
   if (isWhitelisted(job.company)) {
     return { pass: true };
   }
 
-  // Needs at least one allow keyword
   if (hasAny(searchText, ALLOW_KEYWORDS)) {
     return { pass: true };
   }
 
-  // No clear signal — send to Grok for scoring
   return { pass: "ambiguous", text: `${job.title}\n${job.description.slice(0, 400)}` };
 }
 
@@ -157,7 +165,7 @@ async function scoreWithGrok(text: string): Promise<number> {
           {
             role: "system",
             content:
-              "You are a job relevance classifier. Reply ONLY with a JSON object like {\"score\": 8}. Score 0-10 where 10 = perfect match.",
+              'You are a job relevance classifier. Reply ONLY with a JSON object like {"score": 8}. Score 0-10 where 10 = perfect match.',
           },
           {
             role: "user",
@@ -171,7 +179,7 @@ async function scoreWithGrok(text: string): Promise<number> {
     });
 
     if (!res.ok) return 0;
-    const data = await res.json() as { choices: { message: { content: string } }[] };
+    const data = (await res.json()) as { choices: { message: { content: string } }[] };
     const content = data.choices?.[0]?.message?.content ?? "{}";
     const parsed = JSON.parse(content.match(/\{.*\}/s)?.[0] ?? "{}") as { score?: number };
     return parsed.score ?? 0;
@@ -180,13 +188,21 @@ async function scoreWithGrok(text: string): Promise<number> {
   }
 }
 
-export async function isRelevant(job: Job): Promise<boolean> {
+export async function isRelevant(job: Job, verbose = false): Promise<boolean> {
   const result = keywordFilter(job);
 
-  if (result.pass === true) return true;
-  if (result.pass === false) return false;
+  if (result.pass === false) {
+    if (verbose) console.log(`  SKIP — ${result.reason}`);
+    return false;
+  }
+
+  if (result.pass === true) {
+    if (verbose) console.log(`  PASS — keyword match: "${job.title}" @ ${job.company}`);
+    return true;
+  }
 
   // Ambiguous — ask Grok
   const score = await scoreWithGrok(result.text);
+  if (verbose) console.log(`  GROK score ${score}/10 — "${job.title}" @ ${job.company}`);
   return score >= 7;
 }
