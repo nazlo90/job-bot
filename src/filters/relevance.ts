@@ -44,13 +44,17 @@ const ALLOW_KEYWORDS = [
 ];
 
 const BLOCK_KEYWORDS = [
-  "ios",
-  "android",
+  // Mobile / other platforms
+  "ios developer",
+  "ios engineer",
+  "android developer",
+  "android engineer",
   "mobile developer",
   "react native",
   "flutter",
   "swift",
   "kotlin",
+  // Other backend languages
   " java ",
   "java developer",
   "java engineer",
@@ -60,28 +64,73 @@ const BLOCK_KEYWORDS = [
   "ruby",
   "python developer",
   "django",
+  // Low-level / embedded
   "embedded",
   "firmware",
   "fpga",
+  // Junior / intern
   "junior",
   "джуніор",
   "стажер",
   "intern",
+  // QA / testing
   " qa ",
   "тестувальник",
+  "quality assurance",
+  "test engineer",
+  "automation engineer",
+  // Infra / ops
   "devops",
   "sysadmin",
+  "site reliability",
+  "cloud engineer",
+  // Data / AI
   "data scientist",
   "data engineer",
+  "data analyst",
   "machine learning",
+  "ml engineer",
+  "ai engineer",
+  // Non-tech roles
   "designer",
+  "motion designer",
+  "graphic designer",
+  "ux designer",
+  "ui designer",
   "product manager",
   "project manager",
+  "program manager",
   "sales",
   "marketing",
+  "smm",
+  "social media",
+  "copywriter",
+  "content manager",
   "hr ",
+  "hr manager",
+  "hr specialist",
+  "human resources",
   "recruiter",
+  "talent acquisition",
   "scrum master",
+  "accountant",
+  "accounting",
+  "finance manager",
+  "financial analyst",
+  "office manager",
+  "office administrator",
+  "customer support",
+  "customer success",
+  "customer service",
+  "support agent",
+  "support specialist",
+  "lawyer",
+  "legal counsel",
+  "operations manager",
+  "supply chain",
+  "florist",
+  "nurse",
+  "doctor",
 ];
 
 const LOCATION_ALLOW = [
@@ -135,10 +184,6 @@ function keywordFilter(job: Job): FilterResult {
 
   if (!isLocationOk(job)) {
     return { pass: false, reason: `location mismatch — location: "${job.location}"` };
-  }
-
-  if (isWhitelisted(job.company)) {
-    return { pass: true };
   }
 
   if (hasAny(searchText, ALLOW_KEYWORDS)) {

@@ -19,7 +19,13 @@ function formatMessage(job: Job): string {
   if (job.location) lines.push(`📍 ${escapeHtml(job.location)}`);
   if (job.salary)   lines.push(`💰 ${escapeHtml(job.salary)}`);
 
-  lines.push(`🔗 <a href="${job.url}">View job</a>`);
+  if (job.description) {
+    const snippet = job.description.trim().slice(0, 280);
+    const text = snippet.length < job.description.trim().length ? `${snippet}…` : snippet;
+    lines.push(`\n<i>${escapeHtml(text)}</i>`);
+  }
+
+  lines.push(`\n🔗 <a href="${job.url}">View job</a>`);
   lines.push(`<i>${escapeHtml(job.source)}</i>`);
 
   return lines.join("\n");
