@@ -76,19 +76,11 @@ const CAREER_PAGES: CareerPageConfig[] = [
     },
   },
   {
-    company: "SKELAR",
-    url: "https://skelar.com/careers",
+    company: "Genesis",
+    url: "https://gen-tech.breezy.hr",
     scrape: async (page, company) => {
-      await page.waitForSelector("a[href*='job'], a[href*='career'], a[href*='vacancies']", { timeout: 15_000 }).catch(() => {});
-      return genericJobLinks(page, company, "SKELAR careers", "https://skelar.com", "a[href*='job'], a[href*='vacancies']");
-    },
-  },
-  {
-    company: "Kiss My Apps",
-    url: "https://kissmyapps.io/careers",
-    scrape: async (page, company) => {
-      await page.waitForSelector("a[href*='job'], a[href*='career']", { timeout: 15_000 }).catch(() => {});
-      return genericJobLinks(page, company, "KMA careers", "https://kissmyapps.io", "a[href*='job'], a[href*='career'], a[href*='vacancies']");
+      await page.waitForSelector("a[href*='/p/']", { timeout: 15_000 }).catch(() => {});
+      return genericJobLinks(page, company, "Genesis careers", "https://gen-tech.breezy.hr", "a[href*='/p/']");
     },
   },
   {

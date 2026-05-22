@@ -5,22 +5,34 @@ const supabaseKey = process.env.SUPABASE_SERVICE_KEY!;
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Fetch all seen URLs in one query — use this to filter a batch locally
-export async function getSeenUrls(urls: string[]): Promise<Set<string>> {
-  if (urls.length === 0) return new Set();
-  const { data, error } = await supabase
-    .from("seen_jobs")
-    .select("url")
-    .in("url", urls);
-  if (error) throw error;
-  return new Set((data ?? []).map((r: { url: string }) => r.url));
+const CHUNK_SIZE = 100;
+
+function chunks<T>(arr: T[], size: number): T[][] {
+  const result: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) result.push(arr.slice(i, i + size));
+  return result;
 }
 
-// Upsert all newly processed jobs in one batch call
+export async function getSeenUrls(urls: string[]): Promise<Set<string>> {
+  if (urls.length === 0) return new Set();
+  const seen = new Set<string>();
+  for (const batch of chunks(urls, CHUNK_SIZE)) {
+    const { data, error } = await supabase
+      .from("seen_jobs")
+      .select("url")
+      .in("url", batch);
+    if (error) throw error;
+    for (const r of data ?? []) seen.add(r.url);
+  }
+  return seen;
+}
+
 export async function markJobsSeenBatch(
   jobs: { url: string; title: string; company: string }[]
 ): Promise<void> {
   if (jobs.length === 0) return;
-  const { error } = await supabase.from("seen_jobs").upsert(jobs);
-  if (error) throw error;
+  for (const batch of chunks(jobs, CHUNK_SIZE)) {
+    const { error } = await supabase.from("seen_jobs").upsert(batch);
+    if (error) throw error;
+  }
 }

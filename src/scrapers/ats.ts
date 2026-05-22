@@ -3,13 +3,13 @@ import type { Job } from "../types";
 // Companies using Greenhouse public JSON API (no scraping, no auth)
 const GREENHOUSE_COMPANIES: { boardToken: string; company: string }[] = [
   { boardToken: "canonical", company: "Canonical" },
-  { boardToken: "grammarly", company: "Grammarly" },
   { boardToken: "automatticcareers", company: "Automattic" },
 ];
 
-// Companies using Breezy HR public API
-const BREEZY_COMPANIES: { companySlug: string; company: string }[] = [
-  { companySlug: "gen-tech", company: "Genesis" },
+// Companies using Ashby public job board API (no auth required)
+const ASHBY_COMPANIES: { orgSlug: string; company: string }[] = [
+  { orgSlug: "skelar", company: "SKELAR" },
+  { orgSlug: "kissmyapps", company: "Kiss My Apps" },
 ];
 
 interface GreenhouseJob {
@@ -21,13 +21,15 @@ interface GreenhouseJob {
   updated_at: string;
 }
 
-interface BreezyJob {
+interface AshbyJob {
   id: string;
-  name: string;
-  friendly_id: string;
-  location: { name: string };
-  description: string;
-  published_at: string;
+  title: string;
+  department: string;
+  location: string;
+  jobUrl: string;
+  publishedAt: string;
+  descriptionHtml: string;
+  isRemote: boolean;
 }
 
 async function fetchGreenhouse(boardToken: string, company: string): Promise<Job[]> {
@@ -55,40 +57,36 @@ async function fetchGreenhouse(boardToken: string, company: string): Promise<Job
   }
 }
 
-async function fetchBreezy(companySlug: string, company: string): Promise<Job[]> {
+async function fetchAshby(orgSlug: string, company: string): Promise<Job[]> {
   try {
-    // Breezy HR public positions endpoint
     const res = await fetch(
-      `https://api.breezy.hr/v3/company/${companySlug}/positions?state=published`,
-      {
-        headers: { "Content-Type": "application/json" },
-        signal: AbortSignal.timeout(15_000),
-      }
+      `https://api.ashbyhq.com/posting-api/job-board/${orgSlug}`,
+      { signal: AbortSignal.timeout(15_000) }
     );
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const jobs = await res.json() as BreezyJob[];
+    const data = await res.json() as { jobs: AshbyJob[] };
 
-    return jobs.map((j) => ({
-      url: `https://${companySlug}.breezy.hr/p/${j.friendly_id}`,
-      title: j.name,
+    return data.jobs.map((j) => ({
+      url: j.jobUrl,
+      title: j.title,
       company,
-      location: j.location?.name ?? "Unknown",
+      location: j.location ?? (j.isRemote ? "Remote" : "Unknown"),
       salary: "",
-      description: (j.description ?? "").replace(/<[^>]+>/g, "").slice(0, 500),
-      source: "Breezy HR",
-      postedAt: j.published_at,
+      description: (j.descriptionHtml ?? "").replace(/<[^>]+>/g, "").slice(0, 500),
+      source: "Ashby",
+      postedAt: j.publishedAt,
     }));
   } catch (err) {
-    console.error(`Breezy HR fetch failed for ${company}:`, err);
+    console.error(`Ashby fetch failed for ${company}:`, err);
     return [];
   }
 }
 
 export async function fetchAllAtsJobs(): Promise<Job[]> {
-  const [greenhouseResults, breezyResults] = await Promise.all([
+  const [greenhouseResults, ashbyResults] = await Promise.all([
     Promise.all(GREENHOUSE_COMPANIES.map((c) => fetchGreenhouse(c.boardToken, c.company))),
-    Promise.all(BREEZY_COMPANIES.map((c) => fetchBreezy(c.companySlug, c.company))),
+    Promise.all(ASHBY_COMPANIES.map((c) => fetchAshby(c.orgSlug, c.company))),
   ]);
 
-  return [...greenhouseResults.flat(), ...breezyResults.flat()];
+  return [...greenhouseResults.flat(), ...ashbyResults.flat()];
 }
