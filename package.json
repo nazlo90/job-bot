@@ -1,0 +1,25 @@
+{
+  "name": "job-bot",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "rss": "bun run src/run-rss.ts",
+    "companies": "bun run src/run-companies.ts",
+    "install:browsers": "bunx playwright install chromium --with-deps"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/node-telegram-bot-api": "^0.64.14",
+    "@types/xml2js": "^0.4.14"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.106.1",
+    "node-telegram-bot-api": "^0.67.0",
+    "playwright": "^1.60.0",
+    "xml2js": "^0.6.2"
+  }
+}

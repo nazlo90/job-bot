@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+
+# Environment variables (never commit real secrets)
+.env
+.env.local
+.env.*.local
+
+# Bun
+bun.lockb
+
+# TypeScript build cache
+*.tsbuildinfo
+
+# Playwright browser binaries (installed via CI step)
+/playwright/.links
+
+# AI tool runtime artifacts
+.agents/
+.kiro/
+.claude/
+.cursor/
+.mcp.json
+.playwright-mcp/
+skills-lock.json
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp
+*.tmp
+*.temp
+tmp/

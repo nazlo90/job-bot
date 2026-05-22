@@ -1,0 +1,40 @@
+import { fetchAllRssJobs } from "./scrapers/rss";
+import { isRelevant } from "./filters/relevance";
+import { isJobSeen, markJobSeen } from "./db/client";
+import { sendJobNotification } from "./notifiers/telegram";
+
+async function main() {
+  console.log(`[${new Date().toISOString()}] RSS job run started`);
+
+  const jobs = await fetchAllRssJobs();
+  console.log(`Fetched ${jobs.length} total RSS jobs`);
+
+  let sent = 0;
+
+  for (const job of jobs) {
+    if (!job.url) continue;
+
+    const seen = await isJobSeen(job.url);
+    if (seen) continue;
+
+    const relevant = await isRelevant(job);
+    if (!relevant) {
+      await markJobSeen(job.url, job.title, job.company);
+      continue;
+    }
+
+    await sendJobNotification(job);
+    await markJobSeen(job.url, job.title, job.company);
+    sent++;
+
+    // Avoid hitting Telegram rate limit (30 msg/sec)
+    await new Promise((r) => setTimeout(r, 500));
+  }
+
+  console.log(`Done — sent ${sent} notifications`);
+}
+
+main().catch((err) => {
+  console.error("Fatal error in run-rss:", err);
+  process.exit(1);
+});
