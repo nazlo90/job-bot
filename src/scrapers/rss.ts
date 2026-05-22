@@ -5,10 +5,12 @@ interface RssSource {
   url: string;
   company?: string;
   source: string;
+  companyInTitle?: boolean; // title format: "Company: Job Title"
 }
 
 // DOU JS category RSS — covers Angular, React, Vue, TypeScript roles
 // Djinni RSS for frontend and fullstack categories
+// Remotive and WeWorkRemotely for international remote roles
 const RSS_SOURCES: RssSource[] = [
   {
     url: "https://jobs.dou.ua/vacancies/feeds/?category=Javascript",
@@ -38,26 +40,43 @@ const RSS_SOURCES: RssSource[] = [
     url: "https://djinni.co/jobs/rss/?primary_keyword=Vue.js",
     source: "Djinni",
   },
+  {
+    url: "https://remotive.io/remote-jobs/feed/?category=software-dev",
+    source: "Remotive",
+  },
+  {
+    url: "https://weworkremotely.com/categories/remote-front-end-programming-jobs.rss",
+    source: "WeWorkRemotely",
+    companyInTitle: true,
+  },
+  {
+    url: "https://weworkremotely.com/categories/remote-full-stack-programming-jobs.rss",
+    source: "WeWorkRemotely",
+    companyInTitle: true,
+  },
 ];
 
 function extractText(val: unknown): string {
   if (typeof val === "string") return val;
   if (Array.isArray(val)) return extractText(val[0]);
-  if (val && typeof val === "object" && "_" in (val as object)) return (val as { _: string })._;
+  if (val && typeof val === "object" && "_" in val) return (val as { _: string })._;
   return "";
 }
 
+const locationFallbackRe = /[A-ZА-ЯІЇЄ][a-zа-яіїє]+(?:,\s*[A-ZА-ЯІЇЄ][a-zа-яіїє]+)*/;
+const salaryRe = /\$[\d,]+(?:\s*[-–]\s*\$[\d,]+)?/;
+
 function parseLocation(text: string): string {
   const lower = text.toLowerCase();
-  if (lower.includes("remote") || lower.includes("віддален")) return "Remote";
+  if (lower.includes("remote") || lower.includes("віддален") || lower.includes("anywhere")) return "Remote";
   if (lower.includes("lviv") || lower.includes("львів")) return "Lviv";
-  const locationMatch = text.match(/[A-ZА-ЯІЇЄ][a-zа-яіїє]+(?:,\s*[A-ZА-ЯІЇЄ][a-zа-яіїє]+)*/);
-  return locationMatch ? locationMatch[0] : "Unknown";
+  const m = locationFallbackRe.exec(text);
+  return m ? m[0] : "Unknown";
 }
 
 function parseSalary(text: string): string {
-  const match = text.match(/\$[\d,]+(?:\s*[-–]\s*\$[\d,]+)?/);
-  return match ? match[0] : "";
+  const m = salaryRe.exec(text);
+  return m ? m[0] : "";
 }
 
 async function fetchRss(source: RssSource): Promise<Job[]> {
@@ -79,11 +98,24 @@ async function fetchRss(source: RssSource): Promise<Job[]> {
       const description = extractText(i.description ?? i["content:encoded"] ?? "");
       const fullText = `${title} ${description}`;
 
+      // Remotive exposes <company> and <location>; WWR exposes <region> and encodes company in title
+      let jobTitle = title;
+      let company = extractText(i.company ?? i["dc:creator"] ?? i.author ?? "");
+      if (source.companyInTitle && !company) {
+        const sep = title.indexOf(": ");
+        if (sep !== -1) {
+          company = title.slice(0, sep).trim();
+          jobTitle = title.slice(sep + 2).trim();
+        }
+      }
+      const rawLocation = extractText(i.location ?? i.region ?? "");
+      const location = rawLocation ? parseLocation(rawLocation) : parseLocation(fullText);
+
       return {
         url,
-        title,
-        company: extractText(i["dc:creator"] ?? i.author ?? ""),
-        location: parseLocation(fullText),
+        title: jobTitle,
+        company,
+        location,
         salary: parseSalary(fullText),
         description: description.replace(/<[^>]+>/g, "").slice(0, 500),
         source: source.source,
