@@ -3,60 +3,47 @@ import type { Job } from "../types";
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN!;
 const CHAT_ID = process.env.TELEGRAM_CHAT_ID!;
 
+function escapeHtml(text: string): string {
+  return text
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
 function formatMessage(job: Job): string {
   const lines: string[] = [];
 
-  lines.push(`*${escapeMarkdown(job.title)}*`);
-  lines.push(`Company: ${escapeMarkdown(job.company)}`);
+  lines.push(`<b>${escapeHtml(job.title)}</b>`);
+  lines.push(`🏢 ${escapeHtml(job.company)}`);
 
-  if (job.location) {
-    lines.push(`Location: ${escapeMarkdown(job.location)}`);
-  }
+  if (job.location) lines.push(`📍 ${escapeHtml(job.location)}`);
+  if (job.salary)   lines.push(`💰 ${escapeHtml(job.salary)}`);
 
-  if (job.salary) {
-    lines.push(`Salary: ${escapeMarkdown(job.salary)}`);
-  }
-
-  lines.push(`Source: ${escapeMarkdown(job.source)}`);
-  lines.push(`\n[View job](${job.url})`);
+  lines.push(`🔗 <a href="${job.url}">View job</a>`);
+  lines.push(`<i>${escapeHtml(job.source)}</i>`);
 
   return lines.join("\n");
 }
 
-// Escape special MarkdownV2 chars
-function escapeMarkdown(text: string): string {
-  return text.replace(/[_*[\]()~`>#+=|{}.!\\-]/g, "\\$&");
-}
-
-export async function sendJobNotification(job: Job): Promise<void> {
-  const text = formatMessage(job);
-
+async function sendMessage(text: string): Promise<void> {
   const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       chat_id: CHAT_ID,
       text,
-      parse_mode: "MarkdownV2",
+      parse_mode: "HTML",
       disable_web_page_preview: false,
     }),
     signal: AbortSignal.timeout(10_000),
   });
 
   if (!res.ok) {
-    const err = await res.text();
-    console.error(`Telegram send failed for "${job.title}":`, err);
+    const body = await res.text();
+    throw new Error(`Telegram API error ${res.status}: ${body}`);
   }
 }
 
-export async function sendStartupMessage(message: string): Promise<void> {
-  await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chat_id: CHAT_ID,
-      text: message,
-      parse_mode: "MarkdownV2",
-    }),
-  });
+export async function sendJobNotification(job: Job): Promise<void> {
+  await sendMessage(formatMessage(job));
 }
