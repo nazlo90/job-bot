@@ -58,7 +58,7 @@ async function fetchSearchTerm(searchTerm: string): Promise<Job[]> {
       if (!title || !company || !url) continue;
 
       jobs.push({
-        url,
+        url: url.split("?")[0]!,
         title,
         company,
         location: location || "Remote",
