@@ -10,7 +10,7 @@ interface RssSource {
 
 // DOU JS category RSS — covers Angular, React, Vue, TypeScript roles
 // Djinni RSS for frontend and fullstack categories
-// Remotive and WeWorkRemotely for international remote roles
+// Remotive for international remote roles
 const RSS_SOURCES: RssSource[] = [
   {
     url: "https://jobs.dou.ua/vacancies/feeds/?category=Javascript",
@@ -43,16 +43,6 @@ const RSS_SOURCES: RssSource[] = [
   {
     url: "https://remotive.io/remote-jobs/feed/?category=software-dev",
     source: "Remotive",
-  },
-  {
-    url: "https://weworkremotely.com/categories/remote-front-end-programming-jobs.rss",
-    source: "WeWorkRemotely",
-    companyInTitle: true,
-  },
-  {
-    url: "https://weworkremotely.com/categories/remote-full-stack-programming-jobs.rss",
-    source: "WeWorkRemotely",
-    companyInTitle: true,
   },
 ];
 

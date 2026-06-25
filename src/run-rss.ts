@@ -1,4 +1,5 @@
 import { fetchAllRssJobs } from "./scrapers/rss";
+import { fetchAllLinkedInJobs } from "./scrapers/linkedin";
 import { isRelevant } from "./filters/relevance";
 import { getSeenUrls, markJobsSeenBatch } from "./db/client";
 import { sendJobNotification } from "./notifiers/telegram";
@@ -8,8 +9,9 @@ const VERBOSE = process.argv.includes("--verbose");
 async function main() {
   console.log(`[${new Date().toISOString()}] RSS job run started`);
 
-  const jobs = await fetchAllRssJobs();
-  console.log(`Fetched ${jobs.length} total RSS jobs`);
+  const [rssJobs, linkedInJobs] = await Promise.all([fetchAllRssJobs(), fetchAllLinkedInJobs()]);
+  const jobs = [...rssJobs, ...linkedInJobs];
+  console.log(`Fetched ${rssJobs.length} RSS jobs + ${linkedInJobs.length} LinkedIn jobs`);
 
   const validJobs = jobs.filter((j) => !!j.url);
 
