@@ -1,4 +1,5 @@
 import type { Job } from "../types";
+import { isLanguageOk } from "./language";
 
 // Sources that are already geographically filtered — skip location check
 const TRUSTED_SOURCES = new Set(["DOU", "Djinni"]);
@@ -166,7 +167,7 @@ function isLocationOk(job: Job): boolean {
   if (TRUSTED_SOURCES.has(job.source)) return true;
   // Whitelisted companies assumed remote
   if (isWhitelisted(job.company)) return true;
-  const text = `${job.title} ${job.location} ${job.description}`;
+  const text = `${job.title} ${job.location} ${job.description.slice(0, 500)}`;
   return hasAny(text, LOCATION_ALLOW);
 }
 
@@ -176,7 +177,8 @@ type FilterResult =
   | { pass: "ambiguous"; text: string };
 
 function keywordFilter(job: Job): FilterResult {
-  const searchText = `${job.title} ${job.description}`;
+  // Only the start of the description: full texts mention "designers", "junior devs" etc. in passing
+  const searchText = `${job.title} ${job.description.slice(0, 500)}`;
 
   if (hasAny(searchText, BLOCK_KEYWORDS)) {
     return { pass: false, reason: `blocked keyword in "${job.title}"` };
@@ -238,6 +240,12 @@ export async function isRelevant(job: Job, verbose = false): Promise<boolean> {
 
   if (result.pass === false) {
     if (verbose) console.log(`  SKIP — ${result.reason}`);
+    return false;
+  }
+
+  const lang = await isLanguageOk(job);
+  if (!lang.ok) {
+    if (verbose) console.log(`  SKIP — language (${lang.reason}): "${job.title}" @ ${job.company}`);
     return false;
   }
 

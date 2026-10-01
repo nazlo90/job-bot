@@ -28,7 +28,8 @@ async function fetchDescription(jobId: string): Promise<string> {
           .replace(/&[a-z#0-9]+;/gi, " ")
           .replace(/\s+/g, " ")
           .trim()
-          .slice(0, 500)
+          // Language requirements are usually at the end of the posting
+          .slice(0, 4000)
       : "";
   } catch {
     return "";

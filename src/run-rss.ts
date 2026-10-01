@@ -1,7 +1,7 @@
 import { fetchAllRssJobs } from "./scrapers/rss";
 import { fetchAllLinkedInJobs } from "./scrapers/linkedin";
 import { isRelevant } from "./filters/relevance";
-import { getSeenUrls, markJobsSeenBatch } from "./db/client";
+import { filterNewJobs, markJobsSeenBatch } from "./db/client";
 import { sendJobNotification } from "./notifiers/telegram";
 
 const VERBOSE = process.argv.includes("--verbose");
@@ -15,9 +15,8 @@ async function main() {
 
   const validJobs = jobs.filter((j) => !!j.url);
 
-  const seenUrls = await getSeenUrls(validJobs.map((j) => j.url));
-  const newJobs = validJobs.filter((j) => !seenUrls.has(j.url));
-  console.log(`${newJobs.length} new (unseen) jobs to process`);
+  const { fresh: newJobs, dupes } = await filterNewJobs(validJobs);
+  console.log(`${newJobs.length} new (unseen) jobs to process, ${dupes.length} duplicates skipped`);
 
   const toMark: { url: string; title: string; company: string }[] = [];
   let sent = 0;
@@ -42,6 +41,7 @@ async function main() {
     }
   }
 
+  for (const d of dupes) toMark.push({ url: d.url, title: d.title, company: d.company });
   await markJobsSeenBatch(toMark);
 
   console.log(

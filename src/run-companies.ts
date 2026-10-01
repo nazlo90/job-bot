@@ -1,7 +1,7 @@
 import { fetchAllAtsJobs } from "./scrapers/ats";
 import { fetchAllPlaywrightJobs } from "./scrapers/playwright";
 import { isRelevant } from "./filters/relevance";
-import { getSeenUrls, markJobsSeenBatch } from "./db/client";
+import { filterNewJobs, markJobsSeenBatch } from "./db/client";
 import { sendJobNotification } from "./notifiers/telegram";
 
 async function main() {
@@ -17,9 +17,8 @@ async function main() {
   ];
   console.log(`Fetched ${atsJobs.length} ATS jobs + ${playwrightJobs.length} Playwright jobs`);
 
-  const seenUrls = await getSeenUrls(allJobs.map((j) => j.url));
-  const newJobs = allJobs.filter((j) => !seenUrls.has(j.url));
-  console.log(`${newJobs.length} new (unseen) jobs to process`);
+  const { fresh: newJobs, dupes } = await filterNewJobs(allJobs);
+  console.log(`${newJobs.length} new (unseen) jobs to process, ${dupes.length} duplicates skipped`);
 
   const toMark: { url: string; title: string; company: string }[] = [];
   let sent = 0;
@@ -40,6 +39,7 @@ async function main() {
     }
   }
 
+  for (const d of dupes) toMark.push({ url: d.url, title: d.title, company: d.company });
   await markJobsSeenBatch(toMark);
 
   console.log(`Done — sent ${sent} notifications, marked ${toMark.length} jobs as seen`);
